@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -34,6 +32,19 @@ services:
     restart: unless-stopped
     networks:
       - strikers-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: msc-website-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}   # Reads from .env file
+    networks:
+      - strikers-network
+    depends_on:
+      - backend
+      - frontend
 
 networks:
   strikers-network:
