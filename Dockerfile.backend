@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first (for better caching)
+COPY backend/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production || npm install
+
+# Copy the rest of the backend code
+COPY backend/ ./
+
+# Copy .env if it exists (or create from example)
+RUN if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
+
+# Expose the port
+EXPOSE 8787
+
+# Start the backend API
+CMD ["npm", "run", "start:api"]
