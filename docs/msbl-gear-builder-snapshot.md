@@ -5,7 +5,7 @@ Source: `https://msbl.pages.dev/`
 ## Runtime location
 - Assets: `assets/gear-builder/`
 - Template: `pages/templates/msbl-gear-builder.html`
-- Host page: `pages/msbl.html`
+- Host page: `pages/msbl-gear-builder.html`
 - Host bootstrap: `js/msbl-gear-builder-host.js`
 - Original full-page snapshot archive: `docs/archive/gear-builder/index-original.html`
 
@@ -30,4 +30,4 @@ Source: `https://msbl.pages.dev/`
 
 ## Notes
 - This integration is a local snapshot (no auto-sync).
-- Route remains `pages/msbl.html` via existing `global-nav` slug `msbl`.
+- Route remains `pages/msbl-gear-builder.html` via existing `global-nav` slug `msbl-gear-builder`.

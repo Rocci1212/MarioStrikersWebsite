@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var PAGE_KEY = "msbl";
+  var PAGE_KEY = "msbl-gear-builder";
   var TEMPLATE_URL = "/pages/templates/msbl-gear-builder.html";
 
   var SCRIPT_ORDER = [

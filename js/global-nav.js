@@ -26,10 +26,10 @@
         {
           key: "msbl",
           label: "Strikers: Battle League",
-          slug: "msbl",
+          slug: "msbl-gear-builder",
           children: [
             { key: "striker-clubs", label: "Striker Clubs", slug: "players-msbl-clubs" },
-            { key: "gear-builder", label: "Gear Builder", slug: "msbl" },
+            { key: "gear-builder", label: "Gear Builder", slug: "msbl-gear-builder" },
             { key: "save-editor", label: "Save Editor", slug: "msbl-save-editor" }
           ]
         },
@@ -73,7 +73,7 @@
           slug: "msl",
           children: [
             { key: "league-rules", label: "League Rules", slug: "msl-league-rules" },
-            { key: "league-site", label: "Schedule", slug: "msl-league-site" }
+            { key: "league-site", label: "Schedule", slug: "msl-schedule" }
           ]
         },
         {
@@ -115,7 +115,7 @@
 
   var PAGE_CONTEXT_MAP = {
     "players-msbl-clubs": { topKey: "games", secondKey: "msbl", leafKey: "striker-clubs" },
-    "msbl": { topKey: "games", secondKey: "msbl", leafKey: "gear-builder" },
+    "msbl-gear-builder": { topKey: "games", secondKey: "msbl", leafKey: "gear-builder" },
     "msbl-save-editor": { topKey: "games", secondKey: "msbl", leafKey: "save-editor" },
     "msc": { topKey: "games", secondKey: "msc" },
     "sms": { topKey: "games", secondKey: "sms" },
@@ -128,7 +128,7 @@
     "sms-competitiverules": { topKey: "competitive", secondKey: "rules", leafKey: "sms-rules" },
     "msl": { topKey: "competitive", secondKey: "msl" },
     "msl-league-rules": { topKey: "competitive", secondKey: "msl", leafKey: "league-rules" },
-    "msl-league-site": { topKey: "competitive", secondKey: "msl", leafKey: "league-site" },
+    "msl-schedule": { topKey: "competitive", secondKey: "msl", leafKey: "league-site" },
     "msbl-elo1v1": { topKey: "competitive", secondKey: "leaderboards", leafKey: "msbl" },
     "msbl-elo2v2": { topKey: "competitive", secondKey: "leaderboards", leafKey: "msbl" },
     "msbl-whr": { topKey: "competitive", secondKey: "leaderboards", leafKey: "msbl" },
