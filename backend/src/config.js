@@ -14,6 +14,7 @@ function readInt(name, defaultValue) {
 
 const config = {
   port: readInt("PORT", 8787),
+  flareSolverrUrl: process.env.FLARESOLVERR_URL || "http://localhost:8191",
   corsOrigin: process.env.CORS_ORIGIN || "*",
   leaderboardDefaultLimit: readInt("LEADERBOARD_DEFAULT_LIMIT", 100),
   leaderboardMaxLimit: readInt("LEADERBOARD_MAX_LIMIT", 500),

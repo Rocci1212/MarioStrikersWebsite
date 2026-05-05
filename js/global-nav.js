@@ -39,7 +39,8 @@
           slug: "msc",
           children: [
             { key: "setup-guide", label: "Setup Guide", slug: "msc-setup-guide" },
-            { key: "save-editor", label: "Save Editor", slug: "msc-save-editor" }
+            { key: "save-editor", label: "Save Editor", slug: "msc-save-editor" },
+            { key: "wiimmfi", label: "WIIMMFI", slug: "msc-wiimmfi", hidden: true }
           ]
         },
         {
@@ -120,6 +121,7 @@
     "sms": { topKey: "games", secondKey: "sms" },
     "msc-setup-guide": { topKey: "games", secondKey: "msc", leafKey: "setup-guide" },
     "msc-save-editor": { topKey: "games", secondKey: "msc", leafKey: "save-editor" },
+    "msc-wiimmfi": { topKey: "games", secondKey: "msc", leafKey: "wiimmfi" },
     "sms-setup-guide": { topKey: "games", secondKey: "sms", leafKey: "setup-guide" },
     "msbl-competitiverules": { topKey: "competitive", secondKey: "rules", leafKey: "msbl-rules" },
     "msc-competitiverules": { topKey: "competitive", secondKey: "rules", leafKey: "msc-rules" },
@@ -146,17 +148,27 @@
   }
 
   function toPageSlug(raw) {
-    return String(raw || "").toLowerCase().replace(".html", "");
+    return String(raw || "")
+      .toLowerCase()
+      .replace(/^\/*(?:pages\/)?/, "")
+      .replace(/\/+$/, "")
+      .replace(/\.html$/, "");
   }
 
   function getPageSlug() {
     var body = document.body;
     var byDataset = body && body.getAttribute("data-page");
     if (byDataset) {
-      return toPageSlug(byDataset);
+      return toPageSlug(byDataset) || "index";
     }
 
-    return toPageSlug(String(window.location.pathname || "").split("/").pop());
+    var path = String(window.location.pathname || "").toLowerCase();
+    if (!path || path === "/") {
+      return "index";
+    }
+
+    var trimmedPath = path.replace(/\/+$/, "");
+    return toPageSlug(trimmedPath.split("/").pop()) || "index";
   }
 
   function getQueryParams() {
@@ -170,11 +182,13 @@
   }
 
   function toHref(prefix, slug, query) {
+    void prefix;
+    var pageSlug = toPageSlug(slug);
     var suffix = query ? "?" + String(query) : "";
-    if (slug === "index") {
-      return prefix + "/index.html" + suffix;
+    if (!pageSlug || pageSlug === "index") {
+      return "/" + suffix;
     }
-    return prefix + "/pages/" + slug + ".html" + suffix;
+    return "/" + pageSlug + suffix;
   }
 
   function preloadImage(src) {
@@ -555,7 +569,9 @@
     }
 
     var suppressAutoActive = isTabsParentView() && pageState.secondItem && pageState.secondItem.key === parent.key;
-    var tabs = parent.children.map(function (child) {
+    var tabs = parent.children.filter(function (child) {
+      return !child.hidden;
+    }).map(function (child) {
       var isCurrent = !suppressAutoActive && childMatchesPage(child, pageState.pageSlug);
       return buildGlobalTab(prefix, child, isCurrent);
     }).join("");
@@ -591,6 +607,57 @@
       tabSelector: ".global-tab",
       activeSelector: ".global-tab.is-active"
     });
+  }
+
+  function shouldCenterScrollableNav() {
+    if (window.matchMedia) {
+      return window.matchMedia("(max-width: 760px)").matches;
+    }
+
+    return window.innerWidth <= 760;
+  }
+
+  function syncScrollableNav(container, activeSelector) {
+    if (!container) {
+      return;
+    }
+
+    var hasOverflow = container.scrollWidth > container.clientWidth + 2;
+    container.classList.toggle("is-overflowing", hasOverflow);
+
+    if (!hasOverflow) {
+      container.scrollLeft = 0;
+      return;
+    }
+
+    if (!shouldCenterScrollableNav()) {
+      return;
+    }
+
+    var activeItem = container.querySelector(activeSelector);
+    if (!activeItem) {
+      return;
+    }
+
+    window.requestAnimationFrame(function () {
+      var containerRect = container.getBoundingClientRect();
+      var activeRect = activeItem.getBoundingClientRect();
+      var targetLeft = container.scrollLeft +
+        (activeRect.left - containerRect.left) -
+        ((container.clientWidth - activeRect.width) / 2);
+
+      container.scrollTo({
+        left: Math.max(0, targetLeft),
+        behavior: "auto"
+      });
+    });
+  }
+
+  function syncResponsiveNavAlignment() {
+    syncScrollableNav(
+      document.querySelector(".sub-nav"),
+      '.sub-link.is-active, .sub-link[aria-current="page"]'
+    );
   }
 
   function mountGlobalFooter(prefix) {
@@ -649,6 +716,7 @@
     }
 
     mountGlobalFooter(prefix);
+    syncResponsiveNavAlignment();
   }
 
   var _resizeTimer = null;
@@ -691,7 +759,10 @@
     if (_resizeTimer) {
       clearTimeout(_resizeTimer);
     }
-    _resizeTimer = setTimeout(stabilizeScrollbarLayout, 100);
+    _resizeTimer = setTimeout(function () {
+      stabilizeScrollbarLayout();
+      syncResponsiveNavAlignment();
+    }, 100);
   });
 
   if (document.readyState === "loading") {

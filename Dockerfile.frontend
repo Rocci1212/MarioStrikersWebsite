@@ -1,17 +1,10 @@
-FROM node:18-alpine
+FROM nginx:1.27-alpine
 
-# Install http-server globally
-RUN npm install -g http-server
+WORKDIR /usr/share/nginx/html
 
-# Set working directory
-WORKDIR /app
-
-# Copy all frontend files (HTML, CSS, JS, etc.)
 COPY . .
+COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
-# Expose the port
 EXPOSE 8080
 
-# Start the static file server with proxy to backend
-# Note: In Docker, we use service name 'backend' instead of 127.0.0.1
-CMD ["http-server", ".", "-p", "8080", "-c-1", "--proxy", "http://backend:8787"]
+CMD ["nginx", "-g", "daemon off;"]

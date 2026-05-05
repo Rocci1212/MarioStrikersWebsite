@@ -1,3 +1,4 @@
+start.bat
 backend/node_modules/
 backend/.env
 backend/.env.*
@@ -11,3 +12,4 @@ Thumbs.db
 .vscode/
 .idea/
 .env
+tmp/
