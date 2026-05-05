@@ -13,6 +13,10 @@ const STATIC_PAGES_ROOT = path.join(STATIC_ROOT, "pages");
 const LEGACY_PAGE_ROUTE = /^\/pages\/([a-z0-9-]+)\.html$/i;
 const CLEAN_PAGE_ROUTE = /^\/([a-z0-9-]+)$/i;
 const CLEAN_PAGE_TRAILING_SLASH_ROUTE = /^\/([a-z0-9-]+)\/$/i;
+const PAGE_ROUTE_ALIASES = {
+  msbl: "msbl-gear-builder",
+  "msl-league-site": "msl-schedule"
+};
 
 function buildCorsOptions() {
   if (config.corsOrigin === "*") {
@@ -37,8 +41,28 @@ function redirectToCleanPage(req, res, pageSlug) {
   res.redirect(301, `/${pageSlug}${getOriginalQuery(req)}`);
 }
 
+function toCanonicalPageSlug(pageSlug) {
+  const normalizedSlug = String(pageSlug || "").toLowerCase();
+  return PAGE_ROUTE_ALIASES[normalizedSlug] || normalizedSlug;
+}
+
 function pageFileExists(pageSlug) {
   return fs.existsSync(path.join(STATIC_PAGES_ROOT, `${pageSlug}.html`));
+}
+
+function resolveExistingPageSlug(pageSlug) {
+  const canonicalPageSlug = toCanonicalPageSlug(pageSlug);
+  return pageFileExists(canonicalPageSlug) ? canonicalPageSlug : "";
+}
+
+function redirectToResolvedPage(req, res, pageSlug) {
+  const resolvedPageSlug = resolveExistingPageSlug(pageSlug);
+  if (!resolvedPageSlug) {
+    return false;
+  }
+
+  redirectToCleanPage(req, res, resolvedPageSlug);
+  return true;
 }
 
 function sendStaticPage(res, absolutePath, next) {
@@ -76,18 +100,33 @@ function createApp() {
       }
 
       const legacyPageMatch = req.path.match(LEGACY_PAGE_ROUTE);
-      if (legacyPageMatch) {
-        redirectToCleanPage(req, res, legacyPageMatch[1].toLowerCase());
+      if (legacyPageMatch && redirectToResolvedPage(req, res, legacyPageMatch[1])) {
         return;
       }
 
-      const trailingSlashMatch = req.path.match(CLEAN_PAGE_TRAILING_SLASH_ROUTE);
-      if (trailingSlashMatch) {
-        const pageSlug = trailingSlashMatch[1].toLowerCase();
-        if (pageFileExists(pageSlug)) {
-          redirectToCleanPage(req, res, pageSlug);
+      const rootHtmlPageMatch = req.path.match(/^\/([a-z0-9-]+)\.html$/i);
+      if (rootHtmlPageMatch && redirectToResolvedPage(req, res, rootHtmlPageMatch[1])) {
+        return;
+      }
+
+      const legacyExtensionlessPageMatch = req.path.match(/^\/pages\/([a-z0-9-]+)\/?$/i);
+      if (legacyExtensionlessPageMatch && redirectToResolvedPage(req, res, legacyExtensionlessPageMatch[1])) {
+        return;
+      }
+
+      const cleanPageMatch = req.path.match(CLEAN_PAGE_ROUTE);
+      if (cleanPageMatch) {
+        const pageSlug = cleanPageMatch[1].toLowerCase();
+        const canonicalPageSlug = toCanonicalPageSlug(pageSlug);
+        if (canonicalPageSlug !== pageSlug && pageFileExists(canonicalPageSlug)) {
+          redirectToCleanPage(req, res, canonicalPageSlug);
           return;
         }
+      }
+
+      const trailingSlashMatch = req.path.match(CLEAN_PAGE_TRAILING_SLASH_ROUTE);
+      if (trailingSlashMatch && redirectToResolvedPage(req, res, trailingSlashMatch[1])) {
+        return;
       }
 
       next();

@@ -31,7 +31,7 @@ The frontend is plain HTML, shared CSS, and browser JavaScript. Most pages are s
 
 Cache busting is handled with `?v=...` query strings in HTML script/style URLs. Update the relevant tag when changing browser-loaded JS/CSS/assets that may be cached.
 
-Public page URLs are canonicalized to `/slug`, with `/` for the landing page. The physical `index.html` and `pages/*.html` files are implementation details; legacy URLs such as `/index.html` and `/pages/msc-save-editor.html` redirect permanently to their clean equivalents.
+Public page URLs are canonicalized to `/slug`, with `/` for the landing page. The physical `index.html` and `pages/*.html` files are implementation details; legacy URLs such as `/index.html` and `/pages/msc-save-editor.html` redirect permanently to their clean equivalents. Retired route aliases such as `/msbl` and `/msl-league-site` also redirect permanently to their current canonical routes.
 
 ## Project Structure
 
@@ -272,7 +272,7 @@ Top navigation:
 
 Games:
 
-- `/msbl` - MSBL Gear Builder
+- `/msbl-gear-builder` - MSBL Gear Builder
 - `/msbl-save-editor` - MSBL Save Editor
 - `/players-msbl-clubs` - MSBL Striker Clubs
 - `/msc` - MSC overview
@@ -288,7 +288,7 @@ Competitive:
 - `/sms-competitiverules`
 - `/msl`
 - `/msl-league-rules`
-- `/msl-league-site`
+- `/msl-schedule`
 - `/community-tournaments`
 - `/msbl-tier-lists`
 - `/msc-tier-lists`
