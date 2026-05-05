@@ -408,7 +408,20 @@
   }
 
   function getCurrentPageFilename() {
-    return String(window.location.pathname || "").split("/").pop().toLowerCase();
+    var body = document.body;
+    var byDataset = body ? String(body.getAttribute("data-page") || "").trim().toLowerCase() : "";
+    if (byDataset) {
+      return byDataset.replace(/\.html$/, "");
+    }
+
+    var path = String(window.location.pathname || "").toLowerCase();
+    if (!path || path === "/") {
+      return "index";
+    }
+
+    return String(path.replace(/\/+$/, "").split("/").pop() || "")
+      .replace(/\.html$/, "")
+      .toLowerCase();
   }
 
   function getPathPrefix() {
@@ -423,6 +436,22 @@
     }
     var params = new URLSearchParams(search);
     return params.get("tabs") === "none";
+  }
+
+  function toPageHref(prefix, rawTarget) {
+    void prefix;
+    var normalized = String(rawTarget || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^\/*(?:pages\/)?/, "")
+      .replace(/\/+$/, "")
+      .replace(/\.html$/, "");
+
+    if (!normalized || normalized === "index") {
+      return "/";
+    }
+
+    return "/" + normalized;
   }
 
   function buildTabInnerMarkup(tab, prefix) {
@@ -442,8 +471,12 @@
   function buildTabsHtml(config, pageKey, currentFile, prefix, suppressAutoActive) {
     return config.tabs.map(function (tab, index) {
       var tabId = pageKey + "-tab-" + tab.key;
-      var tabHref = tab.href ? String(tab.href) : "";
-      var isActive = !suppressAutoActive && tabHref.toLowerCase() === currentFile;
+      var tabHref = toPageHref(prefix, tab.href || tab.key);
+      var tabRouteKey = String(tab.key || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\.html$/, "");
+      var isActive = !suppressAutoActive && tabRouteKey === currentFile;
       if (!suppressAutoActive && !currentFile && index === 0) {
         isActive = true;
       }
@@ -495,6 +528,9 @@
 
       if (tabsController) {
         tabsController.sync();
+        if (typeof tabsController.revealActiveTab === "function") {
+          tabsController.revealActiveTab();
+        }
       }
 
       if (typeof onActiveTabChange === "function") {
@@ -508,10 +544,10 @@
       tabButtons.forEach(function (button, index) {
         button.addEventListener("click", function (event) {
           var tabKey = button.getAttribute("data-lb-tab");
-          var tabHref = String(button.getAttribute("data-lb-href") || "").toLowerCase();
+          var tabHref = String(button.getAttribute("data-lb-href") || "");
           var suppressAutoActive = isTabsParentView();
 
-          if (tabHref && (tabHref !== currentFile || suppressAutoActive)) {
+          if (tabHref && (tabKey !== currentFile || suppressAutoActive)) {
             window.location.href = tabHref;
             return;
           }
@@ -596,7 +632,7 @@
     controller.bindEvents();
     var activeTab = null;
     for (var i = 0; i < config.tabs.length; i += 1) {
-      var href = String(config.tabs[i].href || "").toLowerCase();
+      var href = String(config.tabs[i].key || "").toLowerCase();
       if (href === currentFile) {
         activeTab = config.tabs[i];
         break;

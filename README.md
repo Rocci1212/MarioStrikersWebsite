@@ -23,13 +23,15 @@ The frontend is plain HTML, shared CSS, and browser JavaScript. Most pages are s
 
 ## Tech Stack
 
-- Frontend: static HTML in `index.html` and `pages/`.
+- Frontend: static HTML in `index.html` and `pages/`, served publicly through clean URLs such as `/games`.
 - Styling: shared site CSS in `css/global.css`; Gear Builder CSS under `assets/gear-builder/`.
 - Browser logic: vanilla JavaScript in `js/`.
 - Backend: Node.js `>=20`, Express, MSSQL, read-only API endpoints.
 - Data source: live MSSQL database. The backend does not store leaderboard, player, profile, or club data locally.
 
 Cache busting is handled with `?v=...` query strings in HTML script/style URLs. Update the relevant tag when changing browser-loaded JS/CSS/assets that may be cached.
+
+Public page URLs are canonicalized to `/slug`, with `/` for the landing page. The physical `index.html` and `pages/*.html` files are implementation details; legacy URLs such as `/index.html` and `/pages/msc-save-editor.html` redirect permanently to their clean equivalents.
 
 ## Project Structure
 
@@ -55,7 +57,7 @@ Files in `assets/` are runtime assets loaded by the website. Source design files
 Requirements:
 
 - Node.js `>=20`
-- `npm` and `npx` in PATH
+- `npm` in PATH
 - MSSQL credentials for `backend/.env`
 
 Install backend dependencies and create the local config:
@@ -80,7 +82,7 @@ MSSQL_USER=
 MSSQL_PASSWORD=
 ```
 
-Start the full local environment from the project root:
+Start the combined local environment from the project root:
 
 ```powershell
 start.bat
@@ -88,23 +90,20 @@ start.bat
 
 This starts:
 
-- Frontend: `http://127.0.0.1:8080`
-- Backend API: `http://127.0.0.1:8787`
+- Website and API: `http://127.0.0.1:8787`
+- FlareSolverr for the WIIMMFI bridge, if Docker is available to `start.bat`
 
-`start.bat` creates `backend/.env` from `.env.example` if missing, installs backend dependencies if `backend/node_modules/` is missing, starts the API, starts a static server with `/api` proxied to the API, and opens the frontend in the browser.
+`start.bat` sets `SERVE_STATIC=true`, starts the Express app, and opens `http://localhost:8787`. Express serves clean URLs directly and keeps legacy `.html` redirects available for local testing.
 
-Manual start:
+Docker Compose start:
 
 ```powershell
-# Terminal 1
-cd backend
-npm run start:api
-
-# Terminal 2, project root
-npx --yes http-server . -p 8080 -c-1 --proxy http://127.0.0.1:8787
+docker compose up --build
 ```
 
-Use a local server instead of opening HTML files directly, because templates and API requests use browser `fetch()`.
+This starts the Nginx frontend at `http://127.0.0.1:8080` and proxies `/api/...` to the backend service. Do not use `http-server` for this project; it does not provide the clean URL rewrites, trailing-slash redirects, or legacy `.html` redirects.
+
+Use one of the local servers instead of opening HTML files directly, because templates and API requests use browser `fetch()`.
 
 ## Frontend Architecture
 
@@ -118,13 +117,15 @@ Use a local server instead of opening HTML files directly, because templates and
 - Leaderboard pages use `js/leaderboards-config.js` and `js/leaderboards-engine.js`.
 - Competitive rules pages use `js/competitive-rules-config.js` and `js/competitive-rules-engine.js`.
 - Players and clubs use `js/players-engine.js` and `js/msbl-clubs-engine.js`.
-- The player profile popup is loaded from `pages/templates/player-profile-popup.html`.
-- The MSBL Gear Builder page loads `pages/templates/msbl-gear-builder.html` and scripts from `assets/gear-builder/`.
+- The player profile popup is loaded from `/pages/templates/player-profile-popup.html`.
+- The MSBL Gear Builder page loads `/pages/templates/msbl-gear-builder.html` and scripts from `assets/gear-builder/`.
 - MSBL Gear Builder preset drafts are stored in `sessionStorage` and can be exported as XML for the MSBL Save Editor.
 
 ## MSBL Save Editor
 
-Page: `pages/msbl-save-editor.html`
+Public route: `/msbl-save-editor`
+
+Implementation file: `pages/msbl-save-editor.html`
 
 Implemented by:
 
@@ -146,7 +147,9 @@ Gear preset XML uses `<msbl-gear-presets version="1">` with one `<character id="
 
 ## MSC Save Editor
 
-Page: `pages/msc-save-editor.html`
+Public route: `/msc-save-editor`
+
+Implementation file: `pages/msc-save-editor.html`
 
 The page has two client-side modes:
 
@@ -257,54 +260,56 @@ Current frontend leaderboard pages:
 
 ## Main Routes
 
+Public routes are listed first. The static files live in `pages/*.html` unless otherwise noted.
+
 Top navigation:
 
-- `index.html` - Home
-- `pages/games.html` - Games
-- `pages/competitive.html` - Competitive
-- `pages/players.html` - Players
-- `pages/partners.html` - Partners
+- `/` - Home, implemented by `index.html`
+- `/games` - Games
+- `/competitive` - Competitive
+- `/players` - Players
+- `/partners` - Partners
 
 Games:
 
-- `pages/msbl.html` - MSBL Gear Builder
-- `pages/msbl-save-editor.html` - MSBL Save Editor
-- `pages/players-msbl-clubs.html` - MSBL Striker Clubs
-- `pages/msc.html` - MSC overview
-- `pages/msc-setup-guide.html` - MSC Setup Guide
-- `pages/msc-save-editor.html` - MSC Save Editor and Online Friendlist Editor
-- `pages/sms.html` - SMS overview
-- `pages/sms-setup-guide.html` - SMS Setup Guide
+- `/msbl` - MSBL Gear Builder
+- `/msbl-save-editor` - MSBL Save Editor
+- `/players-msbl-clubs` - MSBL Striker Clubs
+- `/msc` - MSC overview
+- `/msc-setup-guide` - MSC Setup Guide
+- `/msc-save-editor` - MSC Save Editor and Online Friendlist Editor
+- `/sms` - SMS overview
+- `/sms-setup-guide` - SMS Setup Guide
 
 Competitive:
 
-- `pages/msbl-competitiverules.html`
-- `pages/msc-competitiverules.html`
-- `pages/sms-competitiverules.html`
-- `pages/msl.html`
-- `pages/msl-league-rules.html`
-- `pages/msl-league-site.html`
-- `pages/community-tournaments.html`
-- `pages/msbl-tier-lists.html`
-- `pages/msc-tier-lists.html`
-- `pages/sms-tier-lists.html`
+- `/msbl-competitiverules`
+- `/msc-competitiverules`
+- `/sms-competitiverules`
+- `/msl`
+- `/msl-league-rules`
+- `/msl-league-site`
+- `/community-tournaments`
+- `/msbl-tier-lists`
+- `/msc-tier-lists`
+- `/sms-tier-lists`
 
 Leaderboards:
 
-- `pages/msbl-elo1v1.html`
-- `pages/msbl-elo2v2.html`
-- `pages/msbl-whr.html`
-- `pages/msc-elo1v1.html`
-- `pages/msc-whr.html`
-- `pages/sms-elo1v1.html`
-- `pages/sms-whr.html`
+- `/msbl-elo1v1`
+- `/msbl-elo2v2`
+- `/msbl-whr`
+- `/msc-elo1v1`
+- `/msc-whr`
+- `/sms-elo1v1`
+- `/sms-whr`
 
 Utility/footer pages:
 
-- `pages/about-us.html`
-- `pages/privacy-policy.html`
+- `/about-us`
+- `/privacy-policy`
 
-Reserve/helper pages exist but are not central navigation targets, for example `pages/players-profiles.html`, `pages/msl-leaderboards.html`, and `pages/tab-placeholder.html`.
+Reserve/helper pages exist but are not central navigation targets, for example `/players-profiles`, `/msl-leaderboards`, and `/tab-placeholder`.
 
 ## Useful Commands
 
@@ -343,8 +348,9 @@ git diff --check
 ## Troubleshooting
 
 - If dynamic pages show loading errors, check that the backend is running and `backend/.env` contains valid MSSQL credentials.
-- If `/api/...` returns 404 from the frontend server, make sure the static server was started with the proxy shown above.
+- If `/api/...` returns 404 from the frontend server, use `start.bat` or `docker compose up --build` so API requests are served or proxied by the configured server.
 - If templates fail to load, make sure the site is served through a local web server instead of opening files directly from disk.
+- If clean URLs return 404 locally, do not use `http-server`; it does not know the project's rewrite rules.
 - If static assets look stale, bump the relevant `?v=...` cache tag in the HTML file that loads the changed CSS or JS.
 - If a patched `Strikers2` or `Online` file is rejected by the game, verify that the file length stayed unchanged and that the editor ran its CRC update before export.
 

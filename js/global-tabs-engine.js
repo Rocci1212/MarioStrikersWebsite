@@ -63,6 +63,8 @@
     overlay.setAttribute("viewBox", "0 0 " + overlayWidth + " " + overlayHeight);
     overlay.setAttribute("width", String(overlayWidth));
     overlay.setAttribute("height", String(overlayHeight));
+    overlay.style.width = overlayWidth + "px";
+    overlay.style.height = overlayHeight + "px";
     overlay.setAttribute("shape-rendering", "crispEdges");
 
     var parts = [
@@ -121,6 +123,8 @@
     overlay.setAttribute("viewBox", "0 0 " + overlayWidth + " " + overlayHeight);
     overlay.setAttribute("width", String(overlayWidth));
     overlay.setAttribute("height", String(overlayHeight));
+    overlay.style.width = overlayWidth + "px";
+    overlay.style.height = overlayHeight + "px";
     overlay.setAttribute("shape-rendering", "crispEdges");
 
     overlay.innerHTML = [
@@ -145,10 +149,69 @@
       return null;
     }
 
+    function updateOverflowState() {
+      var hasOverflow = tabsRoot.scrollWidth > tabsRoot.clientWidth + 2;
+      tabsRoot.classList.toggle("is-overflowing", hasOverflow);
+      return hasOverflow;
+    }
+
+    function shouldRevealActiveTab() {
+      var hasOverflow = updateOverflowState();
+      if (!hasOverflow) {
+        return false;
+      }
+
+      if (window.matchMedia) {
+        return window.matchMedia("(max-width: 760px)").matches;
+      }
+
+      return window.innerWidth <= 760;
+    }
+
+    function shouldCenterActiveTab() {
+      if (shell && shell.classList && shell.classList.contains("leaderboard-tabs-shell")) {
+        return false;
+      }
+
+      if (window.matchMedia) {
+        return window.matchMedia("(max-width: 430px)").matches;
+      }
+
+      return window.innerWidth <= 430;
+    }
+
+    function revealActiveTab() {
+      var activeTab = tabsRoot.querySelector(activeSelector);
+      if (!activeTab || !shouldRevealActiveTab()) {
+        return;
+      }
+
+      window.requestAnimationFrame(function () {
+        var rootRect = tabsRoot.getBoundingClientRect();
+        var activeRect = activeTab.getBoundingClientRect();
+        var needsScroll = shouldCenterActiveTab() ||
+          activeRect.left < rootRect.left + 8 ||
+          activeRect.right > rootRect.right - 8;
+        if (!needsScroll) {
+          return;
+        }
+
+        var targetLeft = tabsRoot.scrollLeft +
+          (activeRect.left - rootRect.left) -
+          ((tabsRoot.clientWidth - activeRect.width) / 2);
+
+        tabsRoot.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: "auto"
+        });
+      });
+    }
+
     function sync() {
       var activeTab = tabsRoot.querySelector(activeSelector);
       var overlay = ensureOverlay(tabsRoot);
-      var tabsWidth = Math.max(1, Math.round(tabsRoot.clientWidth));
+      var hasOverflow = updateOverflowState();
+      var tabsWidth = Math.max(1, Math.round(hasOverflow ? tabsRoot.scrollWidth : tabsRoot.clientWidth));
       var tabsHeight = Math.max(1, Math.round(tabsRoot.clientHeight));
 
       if (!activeTab) {
@@ -162,7 +225,7 @@
       var shellWidth = Math.max(1, Math.round(shell ? shell.clientWidth : tabsWidth));
       var shellHeight = Math.max(1, Math.round(shell ? shell.clientHeight : tabsHeight));
 
-      var activeLeftRaw = activeRect.left - tabsRect.left;
+      var activeLeftRaw = (activeRect.left - tabsRect.left) + (hasOverflow ? tabsRoot.scrollLeft : 0);
       var activeSnap = snapRange(activeLeftRaw, activeRect.width, tabsWidth);
       var lineActiveLeft = activeSnap.left;
       var lineActiveWidth = activeSnap.width;
@@ -202,21 +265,32 @@
     }
 
     sync();
+    revealActiveTab();
     tabsRoot.addEventListener("scroll", sync, { passive: true });
-    window.addEventListener("resize", sync);
-    window.addEventListener("load", sync);
+    window.addEventListener("resize", function () {
+      sync();
+      revealActiveTab();
+    });
+    window.addEventListener("load", function () {
+      sync();
+      revealActiveTab();
+    });
 
     var images = tabsRoot.querySelectorAll("img");
     Array.prototype.forEach.call(images, function (image) {
       if (image.complete) {
         return;
       }
-      image.addEventListener("load", sync, { once: true });
+      image.addEventListener("load", function () {
+        sync();
+        revealActiveTab();
+      }, { once: true });
     });
 
     if (typeof ResizeObserver === "function") {
       var resizeObserver = new ResizeObserver(function () {
         sync();
+        revealActiveTab();
       });
       resizeObserver.observe(tabsRoot);
       if (shell) {
@@ -227,11 +301,13 @@
     if (document.fonts && typeof document.fonts.ready === "object") {
       document.fonts.ready.then(function () {
         sync();
+        revealActiveTab();
       });
     }
 
     return {
-      sync: sync
+      sync: sync,
+      revealActiveTab: revealActiveTab
     };
   }
 
