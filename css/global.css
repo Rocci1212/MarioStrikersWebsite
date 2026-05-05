@@ -1479,12 +1479,12 @@ body[data-page="sms-setup-guide"] .setup-guide-video-frame {
   text-underline-offset: 0.14em;
 }
 
-body[data-page="msl-league-site"] .msl-schedule-meta {
+body[data-page="msl-schedule"] .msl-schedule-meta {
   font-size: 15px !important;
   line-height: 1.25;
 }
 
-body[data-page="msl-league-site"] .msl-schedule-meta a {
+body[data-page="msl-schedule"] .msl-schedule-meta a {
   font-size: inherit;
   line-height: inherit;
 }
