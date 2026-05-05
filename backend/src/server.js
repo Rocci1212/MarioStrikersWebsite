@@ -1,3 +1,5 @@
+const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const { config } = require("./config");
@@ -5,6 +7,12 @@ const { healthCheck } = require("./db");
 const { getLeaderboardRows, assertGameAndMode, parseLimit } = require("./services/leaderboards-service");
 const { getMsblClubs } = require("./services/clubs-service");
 const { getPlayersList, getPlayerProfile } = require("./services/players-service");
+
+const STATIC_ROOT = path.join(__dirname, "../../");
+const STATIC_PAGES_ROOT = path.join(STATIC_ROOT, "pages");
+const LEGACY_PAGE_ROUTE = /^\/pages\/([a-z0-9-]+)\.html$/i;
+const CLEAN_PAGE_ROUTE = /^\/([a-z0-9-]+)$/i;
+const CLEAN_PAGE_TRAILING_SLASH_ROUTE = /^\/([a-z0-9-]+)\/$/i;
 
 function buildCorsOptions() {
   if (config.corsOrigin === "*") {
@@ -20,14 +28,80 @@ function buildCorsOptions() {
   };
 }
 
+function getOriginalQuery(req) {
+  const queryIndex = req.originalUrl.indexOf("?");
+  return queryIndex === -1 ? "" : req.originalUrl.slice(queryIndex);
+}
+
+function redirectToCleanPage(req, res, pageSlug) {
+  res.redirect(301, `/${pageSlug}${getOriginalQuery(req)}`);
+}
+
+function pageFileExists(pageSlug) {
+  return fs.existsSync(path.join(STATIC_PAGES_ROOT, `${pageSlug}.html`));
+}
+
+function sendStaticPage(res, absolutePath, next) {
+  res.sendFile(absolutePath, function (error) {
+    if (!error) {
+      return;
+    }
+
+    if (typeof next === "function") {
+      next();
+      return;
+    }
+
+    if (!res.headersSent) {
+      res.status(error.statusCode || 404).end();
+    }
+  });
+}
+
 function createApp() {
   const app = express();
   app.use(cors(buildCorsOptions()));
   app.use(express.json({ limit: "1mb" }));
 
+  if (process.env.SERVE_STATIC === "true") {
+    app.use(function (req, res, next) {
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        next();
+        return;
+      }
+
+      if (req.path === "/index.html") {
+        res.redirect(301, `/${getOriginalQuery(req)}`);
+        return;
+      }
+
+      const legacyPageMatch = req.path.match(LEGACY_PAGE_ROUTE);
+      if (legacyPageMatch) {
+        redirectToCleanPage(req, res, legacyPageMatch[1].toLowerCase());
+        return;
+      }
+
+      const trailingSlashMatch = req.path.match(CLEAN_PAGE_TRAILING_SLASH_ROUTE);
+      if (trailingSlashMatch) {
+        const pageSlug = trailingSlashMatch[1].toLowerCase();
+        if (pageFileExists(pageSlug)) {
+          redirectToCleanPage(req, res, pageSlug);
+          return;
+        }
+      }
+
+      next();
+    });
+
+    app.use(express.static(STATIC_ROOT));
+  }
+
   function sendApiError(res, error) {
     const message = error && error.message ? error.message : "Request failed.";
     const isValidationError = /^Invalid /.test(message);
+    if (!isValidationError) {
+      console.error("[api] Error:", error);
+    }
     res.status(isValidationError ? 400 : 500).json({ error: message });
   }
 
@@ -110,6 +184,59 @@ function createApp() {
     }
   });
 
+  let _wiimmfiCache = null;
+  let _wiimmfiCacheAt = 0;
+
+  function parseWiimmfiText(text) {
+    const lines = text.split("\n");
+    const players = [];
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed || trimmed.startsWith("!")) continue;
+      const parts = trimmed.split("|");
+      // leading | makes parts[0] empty; fields start at index 1
+      // order: id4, pid, fc, host, gid, ls_stat, ol_stat, status, suspend, n, name1, name2
+      const id4 = parts[1] || "";
+      const fc = parts[3] || "";
+      const name1 = parts[11] ? parts[11].trim() : "";
+      if (name1) {
+        players.push({ region: id4.trim(), friendCode: fc.trim(), name: name1 });
+      }
+    }
+    return players;
+  }
+
+  async function fetchWiimmfiPlayers() {
+    if (_wiimmfiCache !== null && Date.now() - _wiimmfiCacheAt < 60000) {
+      return _wiimmfiCache;
+    }
+    const res = await fetch(config.flareSolverrUrl + "/v1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cmd: "request.get",
+        url: "https://wiimmfi.de/stats/game/mschargedwii/text",
+        maxTimeout: 60000
+      })
+    });
+    if (!res.ok) throw new Error("FlareSolverr HTTP " + res.status);
+    const data = await res.json();
+    if (data.status !== "ok") throw new Error("FlareSolverr: " + (data.message || data.status));
+    const players = parseWiimmfiText(data.solution.response);
+    _wiimmfiCache = players;
+    _wiimmfiCacheAt = Date.now();
+    return players;
+  }
+
+  app.get("/api/wiimmfi/msc-charged", async function (_req, res) {
+    try {
+      const players = await fetchWiimmfiPlayers();
+      res.json({ count: players.length, players: players });
+    } catch (error) {
+      sendApiError(res, error);
+    }
+  });
+
   app.get("/api/health", async function (_req, res) {
     try {
       await healthCheck();
@@ -125,6 +252,17 @@ function createApp() {
       });
     }
   });
+
+  if (process.env.SERVE_STATIC === "true") {
+    app.get("/", function (_req, res) {
+      sendStaticPage(res, path.join(STATIC_ROOT, "index.html"));
+    });
+
+    app.get(CLEAN_PAGE_ROUTE, function (req, res, next) {
+      const pageSlug = String(req.params[0] || "").toLowerCase();
+      sendStaticPage(res, path.join(STATIC_PAGES_ROOT, `${pageSlug}.html`), next);
+    });
+  }
 
   app.use(function (_req, res) {
     res.status(404).json({ error: "Not found." });

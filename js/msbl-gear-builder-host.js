@@ -2,7 +2,7 @@
   "use strict";
 
   var PAGE_KEY = "msbl";
-  var TEMPLATE_URL = "./templates/msbl-gear-builder.html";
+  var TEMPLATE_URL = "/pages/templates/msbl-gear-builder.html";
 
   var SCRIPT_ORDER = [
     { src: "../assets/gear-builder/scripts/jquery.min.js" },
